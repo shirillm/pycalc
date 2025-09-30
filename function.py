@@ -1,3 +1,5 @@
+import math
+
 # приоритеты операторов
 PRIORITY = {
     '+': 1,
@@ -9,84 +11,110 @@ PRIORITY = {
     'u-': 4  # унарный минус
 }
 
-def to_rpn(tokens): #опз
-    # output - выходная очередь для результата
+def to_rpn(tokens):
+    """
+    Расширенный алгоритм ОПН с поддержкой математических функций
+    """
     output = []
-    # stack - стек для операторов
     stack = []
 
-    # Проходим по каждому токену
     for i, token in enumerate(tokens):
         if token.replace('.', '').isdigit() and token.count('.') <= 1:
-            # Это число - сразу отправляем в результат
+            # Это число - сразу в результат
             output.append(token)
-            print(f"Число {token} добавлено в результат")
+
+        elif token.lower() in ['pi', 'e']:
+            # Математическая константа - сразу в результат
+            output.append(token.lower())
+
+        elif token.lower() in ['sin', 'cos', 'tan']:
+            # Математическая функция - в стек
+            stack.append(token.upper())  # SIN, COS, TAN
 
         elif token in PRIORITY:
-            # Это оператор - обрабатываем приоритеты
-            # Проверяем унарный минус (если минус в начале или после оператора)
+            # Оператор - обрабатываем приоритеты
             if token == '-' and (i == 0 or tokens[i-1] in PRIORITY or tokens[i-1] == '('):
-                token = 'u-'  # Помечаем как унарный минус
+                token = 'u-'
 
-            # Пока в стеке есть операторы с большим или равным приоритетом
             while (stack and stack[-1] in PRIORITY and
                    PRIORITY[stack[-1]] >= PRIORITY[token]):
-                # Вытаскиваем оператор из стека в результат
                 output.append(stack.pop())
 
-            # Кладем текущий оператор в стек
             stack.append(token)
-            print(f"Оператор {token} положен в стек")
 
         elif token == '(':
-            # Открывающая скобка - в стек
             stack.append(token)
         elif token == ')':
-            # Закрывающая скобка - выталкиваем все до открывающей
             while stack and stack[-1] != '(':
                 output.append(stack.pop())
-            stack.pop()  # убираем саму '('
+            if stack:
+                stack.pop()  # убираем '('
 
-    # Выталкиваем все оставшиеся операторы из стека
+            # Если после скобки функция - выталкиваем её
+            if stack and stack[-1] in ['SIN', 'COS', 'TAN']:
+                output.append(stack.pop())
+
+    # Выталкиваем все оставшиеся операторы и функции
     while stack:
         output.append(stack.pop())
 
-    print(f"Результат ОПН: {' '.join(output)}")
+    print(f"ОПН: {' '.join(output)}")
     return output
 def eval_rpn(rpn_tokens):
     """
-    Вычисляет выражение в обратной польской нотации
-    Работает как стековый калькулятор для новичков
+    Вычисляет выражение в обратной польской нотации с поддержкой функций
     """
-    # Создаем пустой стек для хранения чисел
     stack = []
 
-    # Проходим по каждому токену в выражении
     for token in rpn_tokens:
         if token.replace('.', '').isdigit() and token.count('.') <= 1:
-            # Это число (может быть дробным)
-            # Преобразуем строку в число с плавающей точкой
+            # Это число
             number = float(token)
             stack.append(number)
-            print(f"Положили в стек число: {number}")
+
+        elif token.lower() == 'pi':
+            # Константа пи
+            stack.append(math.pi)
+
+        elif token.lower() == 'e':
+            # Константа e
+            stack.append(math.e)
 
         elif token == 'u-':
-            # Унарный минус (отрицательное число)
+            # Унарный минус
             if not stack:
                 raise ValueError("Недостаточно операндов для унарного минуса")
-            val = stack.pop()  # Берем последнее число
-            result = -val       # Делаем его отрицательным
-            stack.append(result)  # Кладем обратно в стек
-            print(f"Унарный минус: {val} -> {result}")
+            val = stack.pop()
+            stack.append(-val)
+
+        elif token in ['SIN', 'COS', 'TAN']:
+            # Тригонометрические функции
+            if not stack:
+                raise ValueError(f"Недостаточно аргументов для функции {token}")
+
+            arg = stack.pop()  # Берем аргумент функции
+
+            print(f"Выполняем функцию: {token}({arg})")
+
+            if token == 'SIN':
+                result = math.sin(arg)  # Синус в радианах
+            elif token == 'COS':
+                result = math.cos(arg)  # Косинус в радианах
+            elif token == 'TAN':
+                result = math.tan(arg)  # Тангенс в радианах
+            else:
+                raise ValueError(f"Неизвестная функция: {token}")
+
+            stack.append(result)
+            print(f"Результат функции: {result}")
 
         else:
-            # Это оператор (+, -, *, /, %, **)
+            # Бинарные операторы
             if len(stack) < 2:
                 raise ValueError("Недостаточно операндов для операции")
 
-            # Берем два последних числа из стека
-            b = stack.pop()  # Второе число
-            a = stack.pop()  # Первое число
+            b = stack.pop()
+            a = stack.pop()
 
             print(f"Выполняем операцию: {a} {token} {b}")
 
@@ -103,16 +131,15 @@ def eval_rpn(rpn_tokens):
             elif token == '%':
                 if b == 0:
                     raise ZeroDivisionError("Деление на ноль")
-                result = a % b  # Остаток от деления
+                result = a % b
             elif token == '**':
-                result = a ** b  # Возведение в степень
+                result = a ** b
             else:
                 raise ValueError(f"Неизвестный оператор: {token}")
 
             stack.append(result)
-            print(f"Результат: {result}")
+            print(f"Результат операции: {result}")
 
-    # В конце в стеке должно остаться только одно число
     if len(stack) != 1:
         raise ValueError("Неверное выражение")
 
@@ -131,14 +158,19 @@ def calced(first,operation,second):
     if operation=='%':
         print(first%second)
 def tokenize_expression(expr):
-    """
-    Разбивает математическое выражение на токены для новичков
-
-    Пример: "2.5 + 3.7 * 2" -> ["2.5", "+", "3.7", "*", "2"]
-    """
+#   Разбивает математическое выражение на токены для новичков
+#
+#    Поддерживает:
+#    - Числа: 2.5, 3.14
+#    - Операторы: +, -, *, /, **, %
+#    - Функции: sin, cos, tan (на английском)
+#    - Константы: pi, e
+#   - Скобки: (, )
+#    Пример: "sin(pi/4) + cos(0)" -> ["sin", "(", "pi", "/", "4", ")", "+", "cos", "(", "0", ")"]
+  
     # tokens - список для хранения найденных токенов
     tokens = []
-    # current - для накопления числа (например, "2.5")
+    # current - для накопления числа или слова
     current = ""
     # i - индекс текущего символа
     i = 0
@@ -150,39 +182,63 @@ def tokenize_expression(expr):
         if char.isdigit() or char == '.':
             # Это цифра или точка - часть числа
             current += char
-            i += 1  # Переходим к следующему символу
+            i += 1
+
+        elif char.isalpha():
+            # Это буква - может быть функцией или константой
+            current += char
+            i += 1
+
+            # Проверяем, не закончилась ли функция/константа
+            while i < len(expr) and (expr[i].isalpha() or expr[i].isdigit()):
+                current += expr[i]
+                i += 1
+
+            # Проверяем, является ли это математической функцией или константой
+            if current.lower() in ['sin', 'cos', 'tan']:
+                tokens.append(current.lower())
+                print(f"Найдена функция: {current.lower()}")
+            elif current.lower() in ['pi', 'e']:
+                tokens.append(current.lower())
+                print(f"Найдена константа: {current.lower()}")
+            else:
+                # Неизвестное слово
+                tokens.append(current)
+                print(f"Неизвестное слово: {current}")
+
+            current = ""
 
         elif char == '*' and i + 1 < len(expr) and expr[i + 1] == '*':
             # Нашли оператор возведения в степень **
             if current:
-                tokens.append(current)  # Сохраняем накопленное число
-                current = ""           # Очищаем накопитель
-            tokens.append('**')        # Добавляем оператор **
-            i += 2  # Пропускаем два символа (* и *)
+                tokens.append(current)
+                current = ""
+            tokens.append('**')
+            i += 2
 
         elif char in '+-*/%()':
             # Это оператор или скобка
-            if current:
-                tokens.append(current)  # Сохраняем накопленное число
-                current = ""           # Очищаем накопитель
-            tokens.append(char)        # Добавляем оператор
-            i += 1  # Переходим к следующему символу
-
-        elif char == ' ':
-            # Пробел - разделитель токенов
-            if current:
-                tokens.append(current)  # Сохраняем накопленное число
-                current = ""           # Очищаем накопитель
-            i += 1  # Пропускаем пробел
-        else:
-            # Неизвестный символ - тоже добавляем как токен
             if current:
                 tokens.append(current)
                 current = ""
             tokens.append(char)
             i += 1
 
-    # Не забываем сохранить последнее накопленное число
+        elif char == ' ':
+            # Пробел - разделитель токенов
+            if current:
+                tokens.append(current)
+                current = ""
+            i += 1
+        else:
+            # Неизвестный символ
+            if current:
+                tokens.append(current)
+                current = ""
+            tokens.append(char)
+            i += 1
+
+    # Не забываем сохранить последнее накопленное
     if current:
         tokens.append(current)
 
